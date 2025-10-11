@@ -1,5 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import yargs from 'yargs';
+import { hideBin } from 'yargs/helpers';
 import { JsonFormat } from '../efis-editor/src/model/formats/json-format';
 import { FormatId } from '../efis-editor/src/model/formats/format-id';
 import {
@@ -139,9 +141,25 @@ function findJsonFiles(dir: string, fileList: string[] = []): string[] {
 }
 
 async function main() {
-  const checklistsDir = 'checklists';
-  const outputRootDir = 'output';
-  const outputMdFile = 'output.md';
+  const argv = await yargs(hideBin(process.argv))
+    .option('checklistsDir', {
+      description: 'Directory containing checklist JSON files',
+      type: 'string',
+      default: 'checklists',
+    })
+    .option('outputRootDir', {
+      description: 'Root directory for output files',
+      type: 'string',
+      default: 'output',
+    })
+    .option('outputMdFile', {
+      description: 'Path to the output Markdown file',
+      type: 'string',
+      default: 'output.md',
+    }).argv;
+
+  const { checklistsDir, outputRootDir, outputMdFile } = argv;
+  console.log(argv);
 
   const outputFormats = FORMAT_REGISTRY.getSupportedOutputFormats()
     .filter(({ id }) => !['json', 'pdf'].includes(id))
@@ -157,10 +175,12 @@ async function main() {
   for (const inputFile of jsonFiles) {
     const dirname = path.dirname(inputFile);
     const outputDir = path.join(outputRootDir, dirname);
+    console.log(outputDir);
 
     if (!fs.existsSync(outputDir)) {
       fs.mkdirSync(outputDir, { recursive: true });
     }
+    console.log('calling', inputFile, outputDir);
     const links = await convertFile(inputFile, outputDir);
     const checklistName = path.basename(inputFile);
     const rowCells = [checklistName];

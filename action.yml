@@ -19,57 +19,56 @@ inputs:
 runs:
   using: 'composite'
   steps:
-    - name: Checkout tools repo
-      uses: actions/checkout@v4
-      with:
-        repository: alexnj/aviation-checklist-actions
-        path: .
-
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '24'
+
+    - name: Copy a file
+      run: cp -r ${{github.action_path}} _action
+      shell: bash
 
     - name: Checkout EFIS file format editor repository
       uses: actions/checkout@v4
       with:
         repository: ${{ inputs.efis_editor_repository }}
         ref: ${{ inputs.efis_editor_ref }}
-        path: efis-editor
+        path: _action/efis-editor
 
     - name: Install efis-editor dependencies
       run: npm install
-      working-directory: efis-editor
+      working-directory: _action/efis-editor
       shell: bash
 
     - name: Patch EFIS-editor with specific changes
       run: git apply ../efis-editor.patch
-      working-directory: efis-editor
+      working-directory: _action/efis-editor
       shell: bash
 
     - name: Generate efis-editor protobuf files
       run: npm run genproto
-      working-directory: efis-editor
+      working-directory: _action/efis-editor
       shell: bash
 
     - name: Generate efis-editor keys
       run: npm run genkeys
-      working-directory: efis-editor
+      working-directory: _action/efis-editor
       shell: bash
 
     - name: Install compiler dependencies
       run: npm install
-      working-directory: compiler
+      working-directory: _action/compiler
       shell: bash
 
     - name: Compile Compiler Typescript
-      working-directory: efis-editor
+      working-directory: _action/efis-editor
       run: npx tsc ../compiler/*.ts --module commonjs --esModuleInterop --target es2022 --lib es2022,dom --skipLibCheck
       shell: bash
 
     - name: Convert Checklist JSONs to EFIS
-      run: node compiler/compiler.js
+      run: node _action/compiler/compiler.js --checklistsDir=checklists --outputRootDir=output
       shell: bash
+      working-directory: .
 
     - name: Setup gh actions artifact client
       uses: lhotari/gh-actions-artifact-client@v2
@@ -87,6 +86,7 @@ runs:
         done
         echo "::set-output name=artifact_path::output-release"
       shell: bash
+      working-directory: .
 
     - uses: 'softprops/action-gh-release@v1'
       if: github.ref == 'refs/heads/main'

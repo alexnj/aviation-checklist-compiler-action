@@ -8,10 +8,12 @@
     "convert": "node convert.js"
   },
   "devDependencies": {
+    "@types/yargs": "^17.0.33",
     "typescript": "~5.9.2"
   },
   "dependencies": {
     "@types/pdfkit": "^0.17.3",
-    "pdfkit": "^0.17.2"
+    "pdfkit": "^0.17.2",
+    "yargs": "^18.0.0"
   }
 }
