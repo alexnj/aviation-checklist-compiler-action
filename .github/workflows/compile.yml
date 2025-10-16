@@ -20,10 +20,10 @@ on:
     outputs:
       artifact_path:
         description: 'The path to the generated artifacts'
-        value: ${{ jobs.build.outputs.artifact_path }}
+        value: ${{ jobs.compile.outputs.artifact_path }}
 
 jobs:
-  build:
+  compile:
     runs-on: ubuntu-latest
     outputs:
       artifact_path: ${{ steps.upload.outputs.artifact_path }}
