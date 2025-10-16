@@ -1,4 +1,4 @@
-name: Reusable Checklist Build
+name: Compile Checklists
 
 on:
   workflow_call:
@@ -48,8 +48,7 @@ jobs:
         working-directory: efis-editor
 
       - name: Patch EFIS-editor with specific changes
-        if: ${{ inputs.efis_editor_patch != '' }}
-        run: git apply ${{ inputs.efis_editor_patch }}
+        run: git apply ../efis-editor.patch
         working-directory: efis-editor
 
       - name: Generate efis-editor protobuf files
