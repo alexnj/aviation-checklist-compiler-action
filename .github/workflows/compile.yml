@@ -28,8 +28,11 @@ jobs:
     outputs:
       artifact_path: ${{ steps.upload.outputs.artifact_path }}
     steps:
-      - name: Checkout current repository
+      - name: Checkout tools repo
         uses: actions/checkout@v4
+        with:
+          repository: alexnj/aviation-checklist-actions
+          path: .
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
