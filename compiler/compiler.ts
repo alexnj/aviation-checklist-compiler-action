@@ -178,8 +178,6 @@ async function main() {
   for (const inputFile of jsonFiles) {
     const dirname = path.dirname(inputFile);
     const outputDir = path.join(outputRootDir, dirname);
-    console.log(outputDir);
-
     if (!fs.existsSync(outputDir)) {
       fs.mkdirSync(outputDir, { recursive: true });
     }
