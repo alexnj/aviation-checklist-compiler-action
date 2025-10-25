@@ -1,6 +1,26 @@
 name: Compile Checklists
 
 inputs:
+  checklists_directory:
+    description: 'The directory containing the checklist JSON files'
+    type: string
+    required: false
+    default: 'checklists'
+  compiler_output_directory:
+    description: 'The directory where the compiled checklists will be saved'
+    type: string
+    required: false
+    default: 'artifacts'
+  release_directory:
+    description: 'The directory where the final release artifacts will be saved'
+    type: string
+    required: false
+    default: 'output-release'
+  create_release:
+    description: 'Whether to create a GitHub release'
+    type: boolean
+    required: false
+    default: true
   efis_editor_repository:
     description: 'The repository containing the efis-editor'
     type: string
@@ -13,6 +33,10 @@ inputs:
     default: 'main'
   efis_editor_patch:
     description: 'The patch to apply to the efis-editor'
+    type: string
+    required: false
+  formats:
+    description: 'A comma-separated list of FormatIds to compile.'
     type: string
     required: false
 
@@ -66,34 +90,64 @@ runs:
       shell: bash
 
     - name: Convert Checklist JSONs to EFIS
-      run: node _action/compiler/compiler.js --checklistsDir=checklists --outputRootDir=output
+      run: |
+        ARGS="--checklistsDir=${{ inputs.checklists_directory }} --outputRootDir=${{ inputs.compiler_output_directory }}"
+        if [ -n "${{ inputs.formats }}" ]; then
+          ARGS="$ARGS --formats=${{ inputs.formats }}"
+        fi
+        node _action/compiler/compiler.js $ARGS
       shell: bash
       working-directory: .
 
     - name: Setup gh actions artifact client
       uses: lhotari/gh-actions-artifact-client@v2
 
-    - name: Upload artifacts
+    - name: Prepare artifacts
       id: upload
       run: |
-        mkdir output-release
-        find output -type f | while read -r file; do
-          name=${file##*checklists/}
+        mkdir ${{ inputs.release_directory }}
+        find ${{ inputs.compiler_output_directory }} -type f | while read -r file; do
+          name=${file##*${{ inputs.checklists_directory }}/}
           final_name=${name//\//\.}
           echo "Uploading $name, file: $final_name"
-          cp "$file" "output-release/$final_name"
-          cat "$file" | gh-actions-artifact-client.js upload "${final_name}" --retentionDays=7
+          cp "$file" "${{ inputs.release_directory }}/$final_name"
         done
-        echo "::set-output name=artifact_path::output-release"
+        echo "name=artifact_path::${{ inputs.release_directory }}" >> $GITHUB_OUTPUT
       shell: bash
       working-directory: .
 
-    - uses: 'softprops/action-gh-release@v1'
-      if: github.ref == 'refs/heads/main'
+    - name: 'Upload Artifacts'
+      id: artifact-upload-step
+      uses: actions/upload-artifact@v4
+      with:
+        name: compiled-checklists
+        path: ${{ inputs.compiler_output_directory }}
+
+    - name: Prepare PR comment
+      if: github.event_name == 'pull_request'
+      run: |
+        echo "<!-- create-or-update-comment -->" > comment-body.md
+        echo "### ✅ Checklists Compilation" >> comment-body.md
+        echo "" >> comment-body.md
+        echo "- [View full build log](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> comment-body.md
+        echo "- [Download compiled checklists](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/${{ steps.artifact-upload-step.outputs.artifact-id }})" >> comment-body.md
+        echo "" >> comment-body.md
+      shell: bash
+      working-directory: .
+
+    - name: Comment on PR
+      if: github.event_name == 'pull_request'
+      uses: peter-evans/create-or-update-comment@v4
+      with:
+        issue-number: ${{ github.event.pull_request.number }}
+        body-path: comment-body.md
+
+    - uses: 'softprops/action-gh-release@v2'
+      if: github.ref == 'refs/heads/main' && inputs.create_release == 'true'
       with:
         tag_name: 'latest'
         name: 'Automatic Release Build'
-        body_path: 'output.md'
-        prerelease: true
+        make_latest: true
+        body_path: '${{ inputs.compiler_output_directory }}/output.md'
         files: |
-          output-release/*
+          ${{ inputs.release_directory }}/*
