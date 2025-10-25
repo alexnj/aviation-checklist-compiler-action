@@ -18,7 +18,7 @@ export interface PdfRenderingOptions extends ExportOptions {
 }
 
 const DEFAULT_OPTIONS: PdfRenderingOptions = {
-  outputGroupHeading: true,
+  outputGroupHeading: false,
   maxIndentedTextHeight: 40,
   colorHeading: '#0000FF',
   colorEmergency: '#FF0000',

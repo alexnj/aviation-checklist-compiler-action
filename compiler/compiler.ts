@@ -8,10 +8,7 @@ import {
   FORMAT_REGISTRY,
   serializeChecklistFile,
 } from '../efis-editor/src/model/formats/format-registry';
-import {
-  PdfFormat,
-  PdfRenderingOptions,
-} from './pdf-format';
+import { PdfFormat, PdfRenderingOptions } from './pdf-format';
 
 FORMAT_REGISTRY.register(PdfFormat, FormatId.PDF4, '4-col printable PDF', {
   supportsImport: false,
@@ -85,7 +82,9 @@ if (typeof global.window === 'undefined') {
 async function convertFile(
   inputFile: string,
   outputDir: string,
-  formatsToProcess: ReturnType<typeof FORMAT_REGISTRY.getSupportedOutputFormats>,
+  formatsToProcess: ReturnType<
+    typeof FORMAT_REGISTRY.getSupportedOutputFormats
+  >,
   pdfOptions: Partial<PdfRenderingOptions>
 ): Promise<Record<string, string>> {
   try {
