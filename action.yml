@@ -148,6 +148,6 @@ runs:
         tag_name: 'latest'
         name: 'Automatic Release Build'
         make_latest: true
-        body_path: '${{ inputs.compiler_output_directory }}/output.md'
+        body_path: 'output.md'
         files: |
           ${{ inputs.release_directory }}/*
