@@ -43,7 +43,7 @@ inputs:
     description: 'PDF: Whether to output group headings'
     type: boolean
     required: false
-    default: true
+    default: false
   pdf_max_indented_text_height:
     description: 'PDF: Maximum height for indented text items'
     type: number
