@@ -108,7 +108,7 @@ runs:
           cp "$file" "${{ inputs.release_directory }}/$final_name"
           cat "$file" | gh-actions-artifact-client.js upload "${final_name}" --retentionDays=7
         done
-        run: echo "name=artifact_path::${{ inputs.release_directory }}" >> $GITHUB_OUTPUT
+        echo "name=artifact_path::${{ inputs.release_directory }}" >> $GITHUB_OUTPUT
       shell: bash
       working-directory: .
 
