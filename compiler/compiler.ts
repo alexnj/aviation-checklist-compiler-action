@@ -8,7 +8,10 @@ import {
   FORMAT_REGISTRY,
   serializeChecklistFile,
 } from '../efis-editor/src/model/formats/format-registry';
-import { PdfFormat } from './pdf-format';
+import {
+  PdfFormat,
+  PdfRenderingOptions,
+} from './pdf-format';
 
 FORMAT_REGISTRY.register(PdfFormat, FormatId.PDF4, '4-col printable PDF', {
   supportsImport: false,
@@ -82,7 +85,8 @@ if (typeof global.window === 'undefined') {
 async function convertFile(
   inputFile: string,
   outputDir: string,
-  formatsToProcess: ReturnType<typeof FORMAT_REGISTRY.getSupportedOutputFormats>
+  formatsToProcess: ReturnType<typeof FORMAT_REGISTRY.getSupportedOutputFormats>,
+  pdfOptions: Partial<PdfRenderingOptions>
 ): Promise<Record<string, string>> {
   try {
     console.log(`Converting ${inputFile}`);
@@ -99,7 +103,11 @@ async function convertFile(
         `.${id}` +
         ('.' + id.toString() === extension ? '' : extension);
       const outputFile = path.join(outputDir, outputFileName);
-      const writtenFile = await serializeChecklistFile(checklistFile, id);
+      const writtenFile = await serializeChecklistFile(
+        checklistFile,
+        id,
+        pdfOptions
+      );
       console.log(`Saving ${name} as ${outputFile}`);
       fs.writeFileSync(
         outputFile,
@@ -153,9 +161,54 @@ async function main() {
     .option('formats', {
       description: 'Comma-separated list of format IDs to generate',
       type: 'string',
+    })
+    .option('pdfOutputGroupHeading', {
+      description: 'PDF: Whether to output group headings',
+      type: 'boolean',
+    })
+    .option('pdfMaxIndentedTextHeight', {
+      description: 'PDF: Maximum height for indented text items',
+      type: 'number',
+    })
+    .option('pdfColorHeading', {
+      description: 'PDF: Color for headings',
+      type: 'string',
+    })
+    .option('pdfColorEmergency', {
+      description: 'PDF: Color for emergency items',
+      type: 'string',
+    })
+    .option('pdfColorAbnormal', {
+      description: 'PDF: Color for abnormal items',
+      type: 'string',
+    })
+    .option('pdfFontSize', {
+      description: 'PDF: Font size for text',
+      type: 'number',
     }).argv;
 
   const { checklistsDir, outputRootDir, outputMdFile, formats } = argv;
+
+  const pdfOptions: Partial<PdfRenderingOptions> = {};
+  if (argv.pdfOutputGroupHeading !== undefined) {
+    pdfOptions.outputGroupHeading = argv.pdfOutputGroupHeading;
+  }
+  if (argv.pdfMaxIndentedTextHeight !== undefined) {
+    pdfOptions.maxIndentedTextHeight = argv.pdfMaxIndentedTextHeight;
+  }
+  if (argv.pdfColorHeading) {
+    pdfOptions.colorHeading = argv.pdfColorHeading.replace(/'/g, '');
+  }
+  if (argv.pdfColorEmergency) {
+    pdfOptions.colorEmergency = argv.pdfColorEmergency.replace(/'/g, '');
+  }
+  if (argv.pdfColorAbnormal) {
+    pdfOptions.colorAbnormal = argv.pdfColorAbnormal.replace(/'/g, '');
+  }
+  if (argv.pdfFontSize) {
+    pdfOptions.fontSize = argv.pdfFontSize;
+  }
+
   const requestedFormats = formats ? (formats as string).split(',') : null;
   let outputFormats = FORMAT_REGISTRY.getSupportedOutputFormats().filter(
     ({ id }) => !['json', 'pdf'].includes(id)
@@ -181,7 +234,12 @@ async function main() {
     if (!fs.existsSync(outputDir)) {
       fs.mkdirSync(outputDir, { recursive: true });
     }
-    const links = await convertFile(inputFile, outputDir, outputFormats);
+    const links = await convertFile(
+      inputFile,
+      outputDir,
+      outputFormats,
+      pdfOptions
+    );
     const checklistName = path.basename(inputFile);
     const rowCells = [checklistName];
     for (const format of outputFormats) {
