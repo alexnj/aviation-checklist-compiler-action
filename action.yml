@@ -1,6 +1,21 @@
 name: Compile Checklists
 
 inputs:
+  checklists_directory:
+    description: 'The directory containing the checklist JSON files'
+    type: string
+    required: false
+    default: 'checklists'
+  compiler_output_directory:
+    description: 'The directory where the compiled checklists will be saved'
+    type: string
+    required: false
+    default: 'artifacts'
+  release_directory:
+    description: 'The directory where the final release artifacts will be saved'
+    type: string
+    required: false
+    default: 'output-release'
   efis_editor_repository:
     description: 'The repository containing the efis-editor'
     type: string
@@ -71,7 +86,7 @@ runs:
 
     - name: Convert Checklist JSONs to EFIS
       run: |
-        ARGS="--checklistsDir=checklists --outputRootDir=output"
+        ARGS="--checklistsDir=${{ inputs.checklists_directory }} --outputRootDir=${{ inputs.compiler_output_directory }}"
         if [ -n "${{ inputs.formats }}" ]; then
           ARGS="$ARGS --formats=${{ inputs.formats }}"
         fi
@@ -85,15 +100,15 @@ runs:
     - name: Upload artifacts
       id: upload
       run: |
-        mkdir output-release
-        find output -type f | while read -r file; do
-          name=${file##*checklists/}
+        mkdir ${{ inputs.release_directory }}
+        find ${{ inputs.compiler_output_directory }} -type f | while read -r file; do
+          name=${file##*${{ inputs.checklists_directory }}/}
           final_name=${name//\//\.}
           echo "Uploading $name, file: $final_name"
-          cp "$file" "output-release/$final_name"
+          cp "$file" "${{ inputs.release_directory }}/$final_name"
           cat "$file" | gh-actions-artifact-client.js upload "${final_name}" --retentionDays=7
         done
-        echo "::set-output name=artifact_path::output-release"
+        echo "::set-output name=artifact_path::${{ inputs.release_directory }}"
       shell: bash
       working-directory: .
 
@@ -102,7 +117,7 @@ runs:
       with:
         tag_name: 'latest'
         name: 'Automatic Release Build'
-        body_path: 'output.md'
+        body_path: '${{ inputs.compiler_output_directory }}/output.md'
         prerelease: true
         files: |
-          output-release/*
+          ${{ inputs.release_directory }}/*
