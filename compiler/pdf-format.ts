@@ -38,6 +38,7 @@ export class PdfFormat extends AbstractChecklistFormat {
     options: Partial<PdfRenderingOptions> = {}
   ): Promise<File> {
     this._options = { ...DEFAULT_OPTIONS, ...options };
+    console.log('PDF rendering options: ', this._options);
     const pdfBuffer = await this.generatePdf(checklistFile);
     const fileName = `${checklistFile.metadata?.name}.4col.pdf`;
     const pdfUint8Array = new Uint8Array(pdfBuffer);

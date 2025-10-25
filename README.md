@@ -16,7 +16,7 @@ repository.
 | `efis_editor_ref`              | The branch, tag or SHA to checkout from the efis-editor repository | `string`  | `main`                 |
 | `efis_editor_patch`            | The patch to apply to the efis-editor                              | `string`  |                        |
 | `formats`                      | A comma-separated list of FormatIds to compile.                    | `string`  |                        |
-| `pdf_output_group_heading`     | PDF: Whether to output group headings                              | `boolean` | `true`                 |
+| `pdf_output_group_heading`     | PDF: Whether to output group headings                              | `boolean` | `false`                |
 | `pdf_max_indented_text_height` | PDF: Maximum height for indented text items                        | `number`  | `40`                   |
 | `pdf_color_heading`            | PDF: Color for headings                                            | `string`  | `#0000FF`              |
 | `pdf_color_emergency`          | PDF: Color for emergency items                                     | `string`  | `#FF0000`              |
