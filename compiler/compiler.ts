@@ -81,7 +81,8 @@ if (typeof global.window === 'undefined') {
 
 async function convertFile(
   inputFile: string,
-  outputDir: string
+  outputDir: string,
+  formatsToProcess: ReturnType<typeof FORMAT_REGISTRY.getSupportedOutputFormats>
 ): Promise<Record<string, string>> {
   try {
     console.log(`Converting ${inputFile}`);
@@ -92,15 +93,7 @@ async function convertFile(
     const checklistFile = await jsonFormat.toProto(inputFileObject);
     const links: Record<string, string> = {};
 
-    for (const {
-      id,
-      name,
-      extension,
-    } of FORMAT_REGISTRY.getSupportedOutputFormats()) {
-      if (['json', 'pdf'].includes(id)) {
-        console.log(`Skipping ${id} format.`);
-        continue;
-      }
+    for (const { id, name, extension } of formatsToProcess) {
       const outputFileName =
         parsedInputPath.name +
         `.${id}` +
@@ -156,14 +149,21 @@ async function main() {
       description: 'Path to the output Markdown file',
       type: 'string',
       default: 'output.md',
+    })
+    .option('formats', {
+      description: 'Comma-separated list of format IDs to generate',
+      type: 'string',
     }).argv;
 
-  const { checklistsDir, outputRootDir, outputMdFile } = argv;
-  console.log(argv);
-
-  const outputFormats = FORMAT_REGISTRY.getSupportedOutputFormats()
-    .filter(({ id }) => !['json', 'pdf'].includes(id))
-    .sort((a, b) => a.name.localeCompare(b.name));
+  const { checklistsDir, outputRootDir, outputMdFile, formats } = argv;
+  const requestedFormats = formats ? (formats as string).split(',') : null;
+  let outputFormats = FORMAT_REGISTRY.getSupportedOutputFormats();
+  if (requestedFormats) {
+    outputFormats = outputFormats.filter(({ id }) =>
+      requestedFormats.includes(id)
+    );
+  }
+  outputFormats.sort((a, b) => a.name.localeCompare(b.name));
 
   const header =
     '| Checklist | ' + outputFormats.map((f) => f.name).join(' | ') + ' |';
@@ -180,8 +180,7 @@ async function main() {
     if (!fs.existsSync(outputDir)) {
       fs.mkdirSync(outputDir, { recursive: true });
     }
-    console.log('calling', inputFile, outputDir);
-    const links = await convertFile(inputFile, outputDir);
+    const links = await convertFile(inputFile, outputDir, outputFormats);
     const checklistName = path.basename(inputFile);
     const rowCells = [checklistName];
     for (const format of outputFormats) {
