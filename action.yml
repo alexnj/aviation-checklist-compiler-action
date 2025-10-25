@@ -117,10 +117,14 @@ runs:
       working-directory: .
 
     - name: 'Upload Artifacts'
+      id: artifact-upload-step
       uses: actions/upload-artifact@v4
       with:
         name: compiled-checklists
         path: ${{ inputs.compiler_output_directory }}
+
+    - name: Output artifact ID
+      run: echo 'Artifact ID is ${{ steps.artifact-upload-step.outputs.artifact-id }}'
 
     - name: Prepare PR comment
       if: github.event_name == 'pull_request'
@@ -128,14 +132,9 @@ runs:
         echo "<!-- create-or-update-comment -->" > comment-body.md
         echo "### ✅ Checklists Compilation" >> comment-body.md
         echo "" >> comment-body.md
-        cat output.md >> comment-body.md
-        echo "" >> comment-body.md
-        echo "<details><summary>Build details</summary>" >> comment-body.md
-        echo "" >> comment-body.md
         echo "- [View full build log](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> comment-body.md
-        echo "- [Download compiled checklists](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}#artifacts)" >> comment-body.md
+        echo "- [Download compiled checklists](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/${{ steps.artifact-upload-step.outputs.artifact-id }})" >> comment-body.md
         echo "" >> comment-body.md
-        echo "</details>" >> comment-body.md
       shell: bash
       working-directory: .
 
