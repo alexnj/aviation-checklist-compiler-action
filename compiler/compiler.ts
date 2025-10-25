@@ -157,7 +157,10 @@ async function main() {
 
   const { checklistsDir, outputRootDir, outputMdFile, formats } = argv;
   const requestedFormats = formats ? (formats as string).split(',') : null;
-  let outputFormats = FORMAT_REGISTRY.getSupportedOutputFormats();
+  let outputFormats = FORMAT_REGISTRY.getSupportedOutputFormats().filter(
+    ({ id }) => !['json', 'pdf'].includes(id)
+  );
+
   if (requestedFormats) {
     outputFormats = outputFormats.filter(({ id }) =>
       requestedFormats.includes(id)
