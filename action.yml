@@ -16,6 +16,11 @@ inputs:
     type: string
     required: false
     default: 'output-release'
+  create_release:
+    description: 'Whether to create a GitHub release'
+    type: boolean
+    required: false
+    default: true
   efis_editor_repository:
     description: 'The repository containing the efis-editor'
     type: string
@@ -112,12 +117,12 @@ runs:
       shell: bash
       working-directory: .
 
-    - uses: 'softprops/action-gh-release@v1'
-      if: github.ref == 'refs/heads/main'
+    - uses: 'softprops/action-gh-release@v2'
+      if: github.ref == 'refs/heads/main' && inputs.create_release == 'true'
       with:
         tag_name: 'latest'
         name: 'Automatic Release Build'
+        make_latest: true
         body_path: '${{ inputs.compiler_output_directory }}/output.md'
-        prerelease: true
         files: |
           ${{ inputs.release_directory }}/*
