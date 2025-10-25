@@ -120,10 +120,12 @@ runs:
     - name: Prepare PR comment
       if: github.event_name == 'pull_request'
       run: |
+        find ${{ inputs.compiler_output_directory }}
         echo "<!-- create-or-update-comment -->" > comment-body.md
         echo "" >> comment-body.md
-        cat ${{ inputs.compiler_output_directory }}/output.md >> comment-body.md
+        cat output.md >> comment-body.md
       shell: bash
+      working-directory: .
 
     - name: Comment on PR
       if: github.event_name == 'pull_request'
