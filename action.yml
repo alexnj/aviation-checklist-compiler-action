@@ -125,10 +125,17 @@ runs:
     - name: Prepare PR comment
       if: github.event_name == 'pull_request'
       run: |
-        find ${{ inputs.compiler_output_directory }}
         echo "<!-- create-or-update-comment -->" > comment-body.md
+        echo "### ✅ Checklists Compilation" >> comment-body.md
         echo "" >> comment-body.md
         cat output.md >> comment-body.md
+        echo "" >> comment-body.md
+        echo "<details><summary>Build details</summary>" >> comment-body.md
+        echo "" >> comment-body.md
+        echo "- [View full build log](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> comment-body.md
+        echo "- [Download compiled checklists](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}#artifacts)" >> comment-body.md
+        echo "" >> comment-body.md
+        echo "</details>" >> comment-body.md
       shell: bash
       working-directory: .
 
