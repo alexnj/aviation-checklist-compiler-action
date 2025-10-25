@@ -123,9 +123,6 @@ runs:
         name: compiled-checklists
         path: ${{ inputs.compiler_output_directory }}
 
-    - name: Output artifact ID
-      run: echo 'Artifact ID is ${{ steps.artifact-upload-step.outputs.artifact-id }}'
-
     - name: Prepare PR comment
       if: github.event_name == 'pull_request'
       run: |
