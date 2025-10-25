@@ -3,21 +3,42 @@ import {
   ChecklistFile,
   ChecklistItem_Type,
 } from '../efis-editor/gen/ts/checklist';
-import { AbstractChecklistFormat } from '../efis-editor/src/model/formats/abstract-format';
+import {
+  AbstractChecklistFormat,
+  ExportOptions,
+} from '../efis-editor/src/model/formats/abstract-format';
 
-const RENDER_GROUP_HEADING = false;
-const MAX_INDENTED_TEXT_HEIGHT = 10;
-const COLOR_BLUE = '#0000FF';
-const COLOR_RED = '#FF0000';
-const COLOR_AMBER = '#CF3400';
-const FONT_SIZE = 9;
+export interface PdfRenderingOptions extends ExportOptions {
+  outputGroupHeading: boolean;
+  maxIndentedTextHeight: number;
+  colorHeading: string;
+  colorEmergency: string;
+  colorAbnormal: string;
+  fontSize: number;
+}
+
+const DEFAULT_OPTIONS: PdfRenderingOptions = {
+  outputGroupHeading: false,
+  maxIndentedTextHeight: 40,
+  colorHeading: '#0000FF',
+  colorEmergency: '#FF0000',
+  colorAbnormal: '#CF3400',
+  fontSize: 9,
+};
 
 export class PdfFormat extends AbstractChecklistFormat {
+  private _options: PdfRenderingOptions;
+
   async toProto(file: File): Promise<ChecklistFile> {
     throw new Error('PDF to Proto conversion is not supported.');
   }
 
-  async fromProto(checklistFile: ChecklistFile): Promise<File> {
+  async fromProto(
+    checklistFile: ChecklistFile,
+    options: Partial<PdfRenderingOptions> = {}
+  ): Promise<File> {
+    this._options = { ...DEFAULT_OPTIONS, ...options };
+    console.log('PDF rendering options: ', this._options);
     const pdfBuffer = await this.generatePdf(checklistFile);
     const fileName = `${checklistFile.metadata?.name}.4col.pdf`;
     const pdfUint8Array = new Uint8Array(pdfBuffer);
@@ -69,12 +90,12 @@ export class PdfFormat extends AbstractChecklistFormat {
         .moveTo(headerX, headerY)
         .lineTo(headerX + headerWidth, headerY)
         .lineWidth(0.5)
-        .strokeColor(COLOR_BLUE)
+        .strokeColor(this._options.colorHeading)
         .stroke();
       headerY += 5;
 
       doc
-        .fillColor(COLOR_BLUE)
+        .fillColor(this._options.colorHeading)
         .fontSize(14)
         .font('Helvetica-Bold')
         .text(checklist.metadata?.makeAndModel || '', headerX, headerY, {
@@ -95,7 +116,7 @@ export class PdfFormat extends AbstractChecklistFormat {
         .moveTo(headerX, headerY)
         .lineTo(headerX + headerWidth, headerY)
         .lineWidth(0.5)
-        .strokeColor(COLOR_BLUE)
+        .strokeColor(this._options.colorHeading)
         .stroke();
       doc.y = headerY + 10;
 
@@ -133,7 +154,7 @@ export class PdfFormat extends AbstractChecklistFormat {
         itemWidth: number
       ): number => {
         let itemHeight = 0;
-        doc.fontSize(FONT_SIZE);
+        doc.fontSize(this._options.fontSize);
         switch (item.type) {
           case ChecklistItem_Type.ITEM_TITLE:
             doc.font('Helvetica-Bold');
@@ -192,7 +213,7 @@ export class PdfFormat extends AbstractChecklistFormat {
         let totalHeight = 0;
         if (checklistInGroup.title) {
           const checklistTitle = checklistInGroup.title.toUpperCase();
-          doc.font('Helvetica-Bold').fontSize(FONT_SIZE);
+          doc.font('Helvetica-Bold').fontSize(this._options.fontSize);
           totalHeight +=
             doc.heightOfString(checklistTitle, {
               width: columnWidth,
@@ -217,19 +238,19 @@ export class PdfFormat extends AbstractChecklistFormat {
       };
 
       for (const group of checklist.groups) {
-        let groupCategoryColor = COLOR_BLUE;
+        let groupCategoryColor = this._options.colorHeading;
         switch (group.category) {
           case 2:
             // abnormal
-            groupCategoryColor = COLOR_AMBER;
+            groupCategoryColor = this._options.colorAbnormal;
             break;
           case 3:
             // emergency
-            groupCategoryColor = COLOR_RED;
+            groupCategoryColor = this._options.colorEmergency;
             break;
         }
 
-        if (RENDER_GROUP_HEADING) {
+        if (this._options.outputGroupHeading) {
           const groupTitle = group.title.toUpperCase();
           doc.font('Helvetica-Bold').fontSize(10);
           const groupTitleHeight = doc.heightOfString(groupTitle, {
@@ -266,7 +287,7 @@ export class PdfFormat extends AbstractChecklistFormat {
 
           if (checklistInGroup.title) {
             const checklistTitle = checklistInGroup.title.toUpperCase();
-            doc.font('Helvetica-Bold').fontSize(FONT_SIZE);
+            doc.font('Helvetica-Bold').fontSize(this._options.fontSize);
             const checklistTitleHeight = doc.heightOfString(checklistTitle, {
               width: columnWidth,
               align: 'center',
@@ -298,7 +319,7 @@ export class PdfFormat extends AbstractChecklistFormat {
               ((item.indent || 0) > 0 ||
                 item.type == ChecklistItem_Type.ITEM_WARNING ||
                 item.type == ChecklistItem_Type.ITEM_PLAINTEXT) &&
-              itemHeight > MAX_INDENTED_TEXT_HEIGHT
+              itemHeight > this._options.maxIndentedTextHeight
             ) {
               // Skip items that are indented and over max permitted height.
               continue;
@@ -314,7 +335,7 @@ export class PdfFormat extends AbstractChecklistFormat {
             const itemX = getColumnX(currentColumn) + indent;
 
             // Render item
-            doc.fontSize(FONT_SIZE);
+            doc.fontSize(this._options.fontSize);
             switch (item.type) {
               case ChecklistItem_Type.ITEM_TITLE:
                 doc

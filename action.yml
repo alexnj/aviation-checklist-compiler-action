@@ -39,6 +39,36 @@ inputs:
     description: 'A comma-separated list of FormatIds to compile.'
     type: string
     required: false
+  pdf_output_group_heading:
+    description: 'PDF: Whether to output group headings'
+    type: boolean
+    required: false
+    default: false
+  pdf_max_indented_text_height:
+    description: 'PDF: Maximum height for indented text items'
+    type: number
+    required: false
+    default: 40
+  pdf_color_heading:
+    description: 'PDF: Color for headings'
+    type: string
+    required: false
+    default: '#0000FF'
+  pdf_color_emergency:
+    description: 'PDF: Color for emergency items'
+    type: string
+    required: false
+    default: '#FF0000'
+  pdf_color_abnormal:
+    description: 'PDF: Color for abnormal items'
+    type: string
+    required: false
+    default: '#CF3400'
+  pdf_font_size:
+    description: 'PDF: Font size for text'
+    type: number
+    required: false
+    default: 9
 
 runs:
   using: 'composite'
@@ -95,6 +125,12 @@ runs:
         if [ -n "${{ inputs.formats }}" ]; then
           ARGS="$ARGS --formats=${{ inputs.formats }}"
         fi
+        ARGS="$ARGS --pdfOutputGroupHeading=${{ inputs.pdf_output_group_heading }}"
+        ARGS="$ARGS --pdfMaxIndentedTextHeight=${{ inputs.pdf_max_indented_text_height }}"
+        ARGS="$ARGS --pdfColorHeading='${{ inputs.pdf_color_heading }}'"
+        ARGS="$ARGS --pdfColorEmergency='${{ inputs.pdf_color_emergency }}'"
+        ARGS="$ARGS --pdfColorAbnormal='${{ inputs.pdf_color_abnormal }}'"
+        ARGS="$ARGS --pdfFontSize=${{ inputs.pdf_font_size }}"
         node _action/compiler/compiler.js $ARGS
       shell: bash
       working-directory: .
