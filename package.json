@@ -1,15 +1,17 @@
 {
   "name": "efis-compiler",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Converts checklist source files to different EFIS/EFB formats",
-  "main": "convert.js",
   "scripts": {
-    "build": "tsc *.ts --module commonjs --esModuleInterop --target es2022 --lib es2022,dom --skipLibCheck",
-    "convert": "node convert.js"
+    "build": "webpack",
+    "compile": "node dist/compiler.js"
   },
   "devDependencies": {
     "@types/yargs": "^17.0.33",
-    "typescript": "~5.9.2"
+    "ts-loader": "^9.5.4",
+    "typescript": "~5.9.2",
+    "webpack": "^5.102.1",
+    "webpack-cli": "^6.0.1"
   },
   "dependencies": {
     "@types/pdfkit": "^0.17.3",
