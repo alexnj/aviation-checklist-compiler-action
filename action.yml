@@ -94,6 +94,11 @@ runs:
       working-directory: _action/efis-editor
       shell: bash
 
+    - name: Patch EFIS-editor with specific changes
+      run: git apply ../efis-editor.patch
+      working-directory: _action/efis-editor
+      shell: bash
+
     - name: Generate efis-editor protobuf files
       run: npm run genproto
       working-directory: _action/efis-editor
@@ -109,9 +114,9 @@ runs:
       working-directory: _action
       shell: bash
 
-    - name: Init compiler
+    - name: Build compiler
       working-directory: _action
-      run: npm run init
+      run: npm run build
       shell: bash
 
     - name: Convert Checklist JSONs to EFIS
