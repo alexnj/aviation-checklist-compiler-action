@@ -3,7 +3,9 @@
   "version": "1.0.1",
   "description": "Converts checklist source files to different EFIS/EFB formats",
   "scripts": {
+    "init": "npm run patch && npm run build",
     "build": "webpack",
+    "patch": "git apply --directory=efis-editor ./efis-editor.patch",
     "compile": "node dist/compiler.js"
   },
   "devDependencies": {
