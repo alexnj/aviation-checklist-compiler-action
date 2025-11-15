@@ -99,6 +99,11 @@ runs:
       working-directory: _action/efis-editor
       shell: bash
 
+    - name: Generate efis-editor keys
+      run: npm run genkeys
+      working-directory: _action/efis-editor
+      shell: bash
+
     - name: Install compiler dependencies
       run: npm install
       working-directory: _action
