@@ -10,10 +10,14 @@ module.exports = {
         use: 'ts-loader',
         exclude: /node_modules/,
       },
+      { test: /\.afm$/, loader: 'raw-loader'}
     ],
   },
   resolve: {
     extensions: ['.ts', '.js'],
+    alias: {
+			fs: 'pdfkit/js/virtual-fs.js'
+		}
   },
   output: {
     filename: 'compiler.js',

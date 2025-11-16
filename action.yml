@@ -25,7 +25,7 @@ inputs:
     description: 'The repository containing the efis-editor'
     type: string
     required: false
-    default: 'rdamazio/efis-editor'
+    default: 'alexnj/efis-editor#gplt'
   efis_editor_ref:
     description: 'The branch, tag or SHA to checkout from the efis-editor repository'
     type: string
