@@ -27,7 +27,7 @@ const DEFAULT_OPTIONS: PdfRenderingOptions = {
 };
 
 export class PdfFormat extends AbstractChecklistFormat {
-  private _options: PdfRenderingOptions;
+  private _options: PdfRenderingOptions = DEFAULT_OPTIONS;
 
   async toProto(file: File): Promise<ChecklistFile> {
     throw new Error('PDF to Proto conversion is not supported.');

@@ -1,0 +1,25 @@
+{
+  "name": "efis-compiler",
+  "version": "1.0.1",
+  "description": "Converts checklist source files to different EFIS/EFB formats",
+  "scripts": {
+    "init": "npm run patch && npm run build",
+    "build": "webpack",
+    "patch": "git apply --directory=efis-editor ./efis-editor.patch",
+    "compile": "node dist/compiler.js"
+  },
+  "devDependencies": {
+    "@types/webpack-env": "^1.18.8",
+    "@types/yargs": "^17.0.33",
+    "raw-loader": "^4.0.2",
+    "ts-loader": "^9.5.4",
+    "typescript": "~5.9.2",
+    "webpack": "^5.102.1",
+    "webpack-cli": "^6.0.1"
+  },
+  "dependencies": {
+    "@types/pdfkit": "^0.17.3",
+    "pdfkit": "^0.17.2",
+    "yargs": "^18.0.0"
+  }
+}

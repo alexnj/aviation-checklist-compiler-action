@@ -15,6 +15,8 @@ FORMAT_REGISTRY.register(PdfFormat, FormatId.PDF4, '4-col printable PDF', {
   extension: '.pdf',
 });
 
+import './register-files'
+
 const RELEASE_URL_PREFIX = '../../releases/download/latest/';
 
 // Polyfill for window.crypto and window.crypto.subtle for Node.js

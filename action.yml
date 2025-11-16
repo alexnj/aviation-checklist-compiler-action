@@ -30,7 +30,7 @@ inputs:
     description: 'The branch, tag or SHA to checkout from the efis-editor repository'
     type: string
     required: false
-    default: 'main'
+    default: 'gplt'
   efis_editor_patch:
     description: 'The patch to apply to the efis-editor'
     type: string
@@ -111,12 +111,12 @@ runs:
 
     - name: Install compiler dependencies
       run: npm install
-      working-directory: _action/compiler
+      working-directory: _action
       shell: bash
 
-    - name: Compile Compiler Typescript
-      working-directory: _action/efis-editor
-      run: npx tsc ../compiler/*.ts --module commonjs --esModuleInterop --target es2022 --lib es2022,dom --skipLibCheck
+    - name: Build compiler
+      working-directory: _action
+      run: npm run build
       shell: bash
 
     - name: Convert Checklist JSONs to EFIS
@@ -131,7 +131,7 @@ runs:
         ARGS="$ARGS --pdfColorEmergency='${{ inputs.pdf_color_emergency }}'"
         ARGS="$ARGS --pdfColorAbnormal='${{ inputs.pdf_color_abnormal }}'"
         ARGS="$ARGS --pdfFontSize=${{ inputs.pdf_font_size }}"
-        node _action/compiler/compiler.js $ARGS
+        node _action/dist/compiler.js $ARGS
       shell: bash
       working-directory: .
 
