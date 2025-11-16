@@ -25,12 +25,12 @@ inputs:
     description: 'The repository containing the efis-editor'
     type: string
     required: false
-    default: 'alexnj/efis-editor@gplt'
+    default: 'alexnj/efis-editor'
   efis_editor_ref:
     description: 'The branch, tag or SHA to checkout from the efis-editor repository'
     type: string
     required: false
-    default: 'main'
+    default: 'gplt'
   efis_editor_patch:
     description: 'The patch to apply to the efis-editor'
     type: string
