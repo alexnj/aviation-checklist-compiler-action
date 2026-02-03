@@ -30,7 +30,7 @@ inputs:
     description: 'The branch, tag or SHA to checkout from the efis-editor repository'
     type: string
     required: false
-    default: 'gplt'
+    default: 'main'
   efis_editor_patch:
     description: 'The patch to apply to the efis-editor'
     type: string
