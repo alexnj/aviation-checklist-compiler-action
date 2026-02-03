@@ -1,3 +1,4 @@
 node_modules
 dist/*
 efis-editor
+_test_workspace/*
