@@ -2,7 +2,7 @@
 set -e
 
 WORKSPACE="_test_workspace"
-EFIS_REPO="https://github.com/alexnj/efis-editor.git"
+EFIS_REPO="https://github.com/rdamazio/efis-editor.git"
 EFIS_REF="main"
 
 echo "Cleaning up workspace..."
