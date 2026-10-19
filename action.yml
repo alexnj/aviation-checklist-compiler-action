@@ -27,7 +27,7 @@ inputs:
     required: false
     default: 'rdamazio/efis-editor'
   efis_editor_ref:
-    description: 'The branch, tag or SHA to checkout from the efis-editor repository. Defaults to the verified SHA in efis-editor.ref'
+    description: 'The branch, tag or SHA to checkout from the efis-editor repository. Defaults to the verified SHA in efis-editor.ref. Set to "main" to track upstream (unverified)'
     type: string
     required: false
     default: ''

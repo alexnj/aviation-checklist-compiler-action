@@ -13,7 +13,7 @@ repository.
 | `release_directory`            | The directory where the final release artifacts will be saved      | `string`  | `output-release`       |
 | `create_release`               | Whether to create a GitHub release                                 | `boolean` | `true`                 |
 | `efis_editor_repository`       | The repository containing the efis-editor                          | `string`  | `rdamazio/efis-editor` |
-| `efis_editor_ref`              | The branch, tag or SHA to checkout from the efis-editor repository | `string`  | SHA in `efis-editor.ref` |
+| `efis_editor_ref`              | The branch, tag or SHA to checkout from the efis-editor repository. Leave unset to use the verified pin, or set to `main` to track upstream (see [Upstream compatibility](#upstream-compatibility)) | `string`  | SHA in `efis-editor.ref` |
 | `efis_editor_patch`            | The patch to apply to the efis-editor                              | `string`  |                        |
 | `formats`                      | A comma-separated list of FormatIds to compile.                    | `string`  |                        |
 | `pdf_output_group_heading`     | PDF: Whether to output group headings                              | `boolean` | `false`                |
@@ -36,7 +36,23 @@ commit that has been verified to work. That commit's SHA is stored in
   `upstream-break` issue and the pin stays on the last good commit.
 - The compiler exits with an error when any checklist fails to convert to any
   format, so your workflow fails instead of publishing an incomplete release.
-- To build against upstream `main` anyway, set `efis_editor_ref: main`.
+
+### Tracking upstream `main`
+
+Versions before the pin always built against efis-editor `main`. To get that
+behavior back, for example to pick up a new upstream format before the canary
+pins it, set `efis_editor_ref: main`:
+
+```yaml
+- uses: alexnj/aviation-checklist-compiler-action@main
+  with:
+    efis_editor_ref: main
+```
+
+If you do this, a breaking upstream change will fail your build until it is
+fixed here. To use a specific upstream commit, set `efis_editor_ref` to its SHA.
+
+### Local testing
 
 To test locally, run `./verify_action_local.sh`. To test a different
 efis-editor ref, set `EFIS_REF`, for example
