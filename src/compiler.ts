@@ -81,6 +81,22 @@ if (typeof global.window === 'undefined') {
 }
 // End polyfill
 
+interface ConversionFailure {
+  inputFile: string;
+  format: string;
+  error: unknown;
+}
+
+const failures: ConversionFailure[] = [];
+
+function recordFailure(inputFile: string, format: string, error: unknown) {
+  failures.push({ inputFile, format, error });
+  const message = error instanceof Error ? error.message : String(error);
+  // Workflow command so the failure shows up as an annotation in GitHub Actions.
+  console.log(`::error file=${inputFile}::${format}: ${message}`);
+  console.error(error);
+}
+
 async function convertFile(
   inputFile: string,
   outputDir: string,
@@ -89,16 +105,23 @@ async function convertFile(
   >,
   pdfOptions: Partial<PdfRenderingOptions>
 ): Promise<Record<string, string>> {
+  console.log(`Converting ${inputFile}`);
+  const parsedInputPath = path.parse(inputFile);
+  const links: Record<string, string> = {};
+
+  let checklistFile;
   try {
-    console.log(`Converting ${inputFile}`);
-    const parsedInputPath = path.parse(inputFile);
     const inputContent = fs.readFileSync(inputFile, 'utf-8');
     const inputFileObject = new File([inputContent], parsedInputPath.base);
     const jsonFormat = new JsonFormat(FormatId.JSON, 'Raw data');
-    const checklistFile = await jsonFormat.toProto(inputFileObject);
-    const links: Record<string, string> = {};
+    checklistFile = await jsonFormat.toProto(inputFileObject);
+  } catch (error) {
+    recordFailure(inputFile, 'json', error);
+    return links;
+  }
 
-    for (const { id, name, extension } of formatsToProcess) {
+  for (const { id, name, extension } of formatsToProcess) {
+    try {
       const outputFileName =
         parsedInputPath.name +
         `.${id}` +
@@ -117,15 +140,11 @@ async function convertFile(
       const downloadUrl =
         RELEASE_URL_PREFIX + outputFile.split('/').slice(2).join('.');
       links[id] = `[${id}](${downloadUrl})`;
+    } catch (error) {
+      recordFailure(inputFile, id, error);
     }
-    return links;
-  } catch (error) {
-    console.error(
-      `An error occurred during conversion of ${inputFile}:`,
-      error
-    );
-    return {};
   }
+  return links;
 }
 
 function findJsonFiles(dir: string, fileList: string[] = []): string[] {
@@ -210,12 +229,26 @@ async function main() {
     pdfOptions.fontSize = argv.pdfFontSize;
   }
 
-  const requestedFormats = formats ? (formats as string).split(',') : null;
-  let outputFormats = FORMAT_REGISTRY.getSupportedOutputFormats().filter(
+  const requestedFormats = formats
+    ? (formats as string).split(',').map((f) => f.trim()).filter(Boolean)
+    : null;
+  const supportedFormats = FORMAT_REGISTRY.getSupportedOutputFormats();
+  let outputFormats = supportedFormats.filter(
     ({ id }) => !['json', 'pdf'].includes(id)
   );
 
   if (requestedFormats) {
+    // json and pdf are known but intentionally skipped, so only flag ids the
+    // registry doesn't know about at all (e.g. a format removed upstream).
+    const unknownFormats = requestedFormats.filter(
+      (requested) => !supportedFormats.some(({ id }) => id === requested)
+    );
+    if (unknownFormats.length > 0) {
+      throw new Error(
+        `Unknown format(s): ${unknownFormats.join(', ')}. ` +
+          `Available: ${outputFormats.map(({ id }) => id).join(', ')}`
+      );
+    }
     outputFormats = outputFormats.filter(({ id }) =>
       requestedFormats.includes(id)
     );
@@ -229,6 +262,9 @@ async function main() {
   const tableRows = [header, separator];
 
   const jsonFiles = findJsonFiles(checklistsDir);
+  if (jsonFiles.length === 0) {
+    throw new Error(`No checklist JSON files found in ${checklistsDir}`);
+  }
   for (const inputFile of jsonFiles) {
     const dirname = path.dirname(inputFile);
     const outputDir = path.join(outputRootDir, dirname);
@@ -251,6 +287,17 @@ async function main() {
 
   fs.writeFileSync(outputMdFile, tableRows.join('\n'));
   console.log(`Generated ${outputMdFile}`);
+
+  if (failures.length > 0) {
+    console.error(`\n${failures.length} conversion(s) failed:`);
+    for (const { inputFile, format } of failures) {
+      console.error(`  ${inputFile} -> ${format}`);
+    }
+    process.exit(1);
+  }
 }
 
-main();
+main().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});
