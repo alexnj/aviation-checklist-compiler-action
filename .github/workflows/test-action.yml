@@ -1,0 +1,57 @@
+name: Test action
+
+on:
+  workflow_call:
+    inputs:
+      efis_editor_ref:
+        description: 'efis-editor ref to build against. Empty uses the pin in efis-editor.ref'
+        type: string
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      # Checked out into a subdirectory so the action's own
+      # `cp -r ${{ github.action_path }} _action` doesn't copy the workspace into itself.
+      - uses: actions/checkout@v4
+        with:
+          path: action-src
+
+      - name: Run action against test checklists
+        uses: ./action-src
+        with:
+          checklists_directory: action-src/test/checklists
+          efis_editor_ref: ${{ inputs.efis_editor_ref }}
+          create_release: false
+
+      - name: Check compiled output
+        run: |
+          set -euo pipefail
+          status=0
+          for fixture in action-src/test/checklists/*.json; do
+            base="$(basename "$fixture" .json)"
+            outputs="$(find artifacts -type f -name "$base.*")"
+            if [ -z "$outputs" ]; then
+              echo "::error file=$fixture::No compiled output for $base"
+              status=1
+              continue
+            fi
+            echo "$outputs"
+            if ! echo "$outputs" | grep -q "/$base.4col.pdf$"; then
+              echo "::error file=$fixture::Missing 4col PDF for $base"
+              status=1
+            fi
+          done
+          empty="$(find artifacts -type f -empty)"
+          if [ -n "$empty" ]; then
+            echo "::error::Empty output files:"$'\n'"$empty"
+            status=1
+          fi
+          exit $status

@@ -1,0 +1,264 @@
+name: Upstream canary
+
+# Builds the action against efis-editor's latest main. If it passes, the pin in
+# efis-editor.ref moves forward. If it fails, the pin stays where it is (so users
+# are unaffected) and an `upstream-break` issue is opened or updated.
+
+on:
+  schedule:
+    - cron: '17 13 * * *'
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'efis-editor branch, tag or SHA to test. Defaults to main. Only main is ever pinned.'
+        type: string
+        required: false
+        default: ''
+
+concurrency:
+  group: upstream-canary
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  EFIS_REPO: rdamazio/efis-editor
+  ISSUE_LABEL: upstream-break
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      pinned: ${{ steps.resolve.outputs.pinned }}
+      candidate: ${{ steps.resolve.outputs.candidate }}
+      changed: ${{ steps.resolve.outputs.changed }}
+      pinnable: ${{ steps.resolve.outputs.pinnable }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compare pinned SHA with upstream
+        id: resolve
+        env:
+          REQUESTED: ${{ inputs.ref }}
+        run: |
+          set -euo pipefail
+          pinned="$(tr -d '[:space:]' < efis-editor.ref)"
+          requested="$REQUESTED"
+          if [ -z "$requested" ]; then
+            candidate="$(git ls-remote "https://github.com/$EFIS_REPO" refs/heads/main | cut -f1)"
+            pinnable=true
+          elif [[ "$requested" =~ ^[0-9a-f]{40}$ ]]; then
+            candidate="$requested"
+            pinnable=false
+          else
+            candidate="$(git ls-remote "https://github.com/$EFIS_REPO" "$requested" | head -n1 | cut -f1)"
+            pinnable=false
+          fi
+          if [ -z "$candidate" ]; then
+            echo "::error::Could not resolve efis-editor ref '${requested:-main}'"
+            exit 1
+          fi
+          changed=$([ "$candidate" != "$pinned" ] && echo true || echo false)
+          echo "Pinned:    $pinned"
+          echo "Candidate: $candidate (changed=$changed)"
+          {
+            echo "pinned=$pinned"
+            echo "candidate=$candidate"
+            echo "changed=$changed"
+            echo "pinnable=$pinnable"
+          } >> "$GITHUB_OUTPUT"
+
+  test:
+    needs: resolve
+    if: needs.resolve.outputs.changed == 'true'
+    uses: ./.github/workflows/test-action.yml
+    with:
+      efis_editor_ref: ${{ needs.resolve.outputs.candidate }}
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+
+  bump:
+    needs: [resolve, test]
+    if: needs.test.result == 'success' && needs.resolve.outputs.pinnable == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Commit new pin
+        env:
+          PINNED: ${{ needs.resolve.outputs.pinned }}
+          CANDIDATE: ${{ needs.resolve.outputs.candidate }}
+        run: |
+          set -euo pipefail
+          echo "$CANDIDATE" > efis-editor.ref
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add efis-editor.ref
+          git commit -m "chore(deps): bump efis-editor to ${CANDIDATE:0:7}" \
+            -m "https://github.com/$EFIS_REPO/compare/$PINNED...$CANDIDATE" \
+            -m "Verified by ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          # main may have moved while the build ran.
+          git pull --rebase origin main
+          git push origin HEAD:main
+
+      - name: Close upstream-break issue
+        uses: actions/github-script@v7
+        env:
+          CANDIDATE: ${{ needs.resolve.outputs.candidate }}
+        with:
+          script: |
+            const { data: issues } = await github.rest.issues.listForRepo({
+              ...context.repo, state: 'open', labels: process.env.ISSUE_LABEL,
+            });
+            for (const issue of issues) {
+              await github.rest.issues.createComment({
+                ...context.repo, issue_number: issue.number,
+                body: `Upstream \`${process.env.CANDIDATE.slice(0, 7)}\` builds cleanly and is now pinned. Closing.`,
+              });
+              await github.rest.issues.update({
+                ...context.repo, issue_number: issue.number, state: 'closed',
+              });
+            }
+
+  report:
+    needs: [resolve, test]
+    if: failure() && needs.test.result == 'failure'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      issues: write
+    env:
+      HAS_COPILOT_TOKEN: ${{ secrets.COPILOT_ASSIGN_TOKEN != '' }}
+    steps:
+      - name: Collect failing log
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          job_id="$(gh api "repos/$REPO/actions/runs/${{ github.run_id }}/jobs" \
+            --jq '[.jobs[] | select(.conclusion == "failure")][0].id')"
+          gh api "repos/$REPO/actions/runs/${{ github.run_id }}/jobs" \
+            --jq "[.jobs[] | select(.id == $job_id) | .steps[] | select(.conclusion == \"failure\") | .name][0]" \
+            > failed-step.txt
+          # Strip timestamps and ANSI colour codes, keep the tail.
+          gh api "repos/$REPO/actions/jobs/$job_id/logs" \
+            | sed -E 's/^[0-9T:.-]+Z //; s/\x1b\[[0-9;]*m//g' \
+            | grep -v '^##\[' \
+            | tail -n 80 > failed-log.txt
+
+      - name: Open or update issue
+        id: issue
+        uses: actions/github-script@v7
+        env:
+          PINNED: ${{ needs.resolve.outputs.pinned }}
+          CANDIDATE: ${{ needs.resolve.outputs.candidate }}
+        with:
+          script: |
+            const fs = require('fs');
+            const { PINNED, CANDIDATE, EFIS_REPO, ISSUE_LABEL } = process.env;
+            const short = CANDIDATE.slice(0, 7);
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const compareUrl = `https://github.com/${EFIS_REPO}/compare/${PINNED}...${CANDIDATE}`;
+            const failedStep = fs.readFileSync('failed-step.txt', 'utf8').trim();
+            const log = fs.readFileSync('failed-log.txt', 'utf8').trim();
+
+            const details = [
+              `**Upstream commit:** [\`${short}\`](https://github.com/${EFIS_REPO}/commit/${CANDIDATE})`,
+              `**Upstream changes since last good pin:** ${compareUrl}`,
+              `**Failed step:** ${failedStep || 'unknown'}`,
+              `**Run:** ${runUrl}`,
+              '',
+              '<details><summary>Log tail</summary>',
+              '',
+              '```text',
+              log,
+              '```',
+              '',
+              '</details>',
+            ].join('\n');
+
+            try {
+              await github.rest.issues.createLabel({
+                ...context.repo, name: ISSUE_LABEL, color: 'd73a4a',
+                description: 'Upstream efis-editor change breaks the build',
+              });
+            } catch (e) {
+              if (e.status !== 422) throw e; // 422: label already exists
+            }
+
+            const { data: open } = await github.rest.issues.listForRepo({
+              ...context.repo, state: 'open', labels: ISSUE_LABEL,
+            });
+            if (open.length > 0) {
+              await github.rest.issues.createComment({
+                ...context.repo, issue_number: open[0].number,
+                body: `Still failing on upstream \`${short}\`.\n\n${details}`,
+              });
+              core.setOutput('created', 'false');
+              return;
+            }
+
+            const body = [
+              `The nightly canary could not build this action against efis-editor \`${short}\`.`,
+              `Users are unaffected: the action stays pinned to \`${PINNED.slice(0, 7)}\` (see \`efis-editor.ref\`) until this is fixed.`,
+              '',
+              details,
+              '',
+              '## Task',
+              '',
+              `Make this repo build and compile checklists against efis-editor \`${CANDIDATE}\`.`,
+              '',
+              '- Look at the upstream changes in the compare link above to find what changed.',
+              '- Fixes usually go in `tsconfig.json`, `webpack.config.js`, `src/*.ts` or `efis-editor.patch`.',
+              `- Done when \`EFIS_REF=${CANDIDATE} ./verify_action_local.sh\` passes and the compiler exits 0 for every format on \`test/checklists\`.`,
+              '- Do not change `efis-editor.ref`. The canary moves the pin once the fix is on main.',
+            ].join('\n');
+
+            const { data: issue } = await github.rest.issues.create({
+              ...context.repo, labels: [ISSUE_LABEL],
+              title: `Upstream efis-editor ${short} breaks the build`,
+              body,
+            });
+            core.setOutput('created', 'true');
+            core.setOutput('number', String(issue.number));
+
+      # Optional: hand new issues to the Copilot coding agent. Needs a fine-grained PAT from
+      # a user with Copilot coding agent access (Issues, Pull requests, Contents, Actions: write).
+      - name: Assign to Copilot
+        if: steps.issue.outputs.created == 'true' && env.HAS_COPILOT_TOKEN == 'true'
+        uses: actions/github-script@v7
+        env:
+          ISSUE_NUMBER: ${{ steps.issue.outputs.number }}
+        with:
+          github-token: ${{ secrets.COPILOT_ASSIGN_TOKEN }}
+          script: |
+            const { repository } = await github.graphql(`
+              query($owner: String!, $repo: String!, $number: Int!) {
+                repository(owner: $owner, name: $repo) {
+                  issue(number: $number) { id }
+                  suggestedActors(capabilities: [CAN_BE_ASSIGNED], first: 100) {
+                    nodes { login ... on Bot { id } }
+                  }
+                }
+              }`, { ...context.repo, number: Number(process.env.ISSUE_NUMBER) });
+            const copilot = repository.suggestedActors.nodes.find(
+              (n) => n.login === 'copilot-swe-agent');
+            if (!copilot) {
+              core.warning('Copilot coding agent is not enabled for this repository; skipping.');
+              return;
+            }
+            await github.graphql(`
+              mutation($assignableId: ID!, $actorIds: [ID!]!) {
+                replaceActorsForAssignable(input: { assignableId: $assignableId, actorIds: $actorIds }) {
+                  __typename
+                }
+              }`, { assignableId: repository.issue.id, actorIds: [copilot.id] });
