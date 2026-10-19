@@ -3,7 +3,8 @@ set -e
 
 WORKSPACE="_test_workspace"
 EFIS_REPO="https://github.com/rdamazio/efis-editor.git"
-EFIS_REF="main"
+# Override with e.g. EFIS_REF=main ./verify_action_local.sh to test upstream HEAD.
+EFIS_REF="${EFIS_REF:-$(tr -d '[:space:]' < efis-editor.ref)}"
 
 echo "Cleaning up workspace..."
 rm -rf "$WORKSPACE"
@@ -18,6 +19,7 @@ rsync -av --progress . "$WORKSPACE/_action" \
     --exclude "output"
 
 echo "Cloning efis-editor..."
+echo "Using efis-editor ref: $EFIS_REF"
 git clone "$EFIS_REPO" "$WORKSPACE/_action/efis-editor"
 cd "$WORKSPACE/_action/efis-editor"
 git checkout "$EFIS_REF"
@@ -25,7 +27,7 @@ cd -
 
 echo "Installing efis-editor dependencies..."
 cd "$WORKSPACE/_action/efis-editor"
-npm install
+npm ci
 cd -
 
 echo "Patching efis-editor..."
@@ -51,7 +53,7 @@ cd -
 
 echo "Installing compiler dependencies..."
 cd "$WORKSPACE/_action"
-npm install
+npm ci
 cd -
 
 
@@ -62,7 +64,7 @@ cd -
 
 echo "Setting up test checklist..."
 mkdir -p "$WORKSPACE/checklists"
-cp sample.json "$WORKSPACE/checklists/"
+cp test/checklists/*.json "$WORKSPACE/checklists/"
 
 echo "Running compiler..."
 # Mimic the action arguments

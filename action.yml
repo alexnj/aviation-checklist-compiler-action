@@ -27,10 +27,10 @@ inputs:
     required: false
     default: 'rdamazio/efis-editor'
   efis_editor_ref:
-    description: 'The branch, tag or SHA to checkout from the efis-editor repository'
+    description: 'The branch, tag or SHA to checkout from the efis-editor repository. Defaults to the verified SHA in efis-editor.ref'
     type: string
     required: false
-    default: 'main'
+    default: ''
   efis_editor_patch:
     description: 'The patch to apply to the efis-editor'
     type: string
@@ -82,15 +82,26 @@ runs:
       run: cp -r ${{github.action_path}} _action
       shell: bash
 
+    - name: Resolve efis-editor ref
+      id: efis-ref
+      run: |
+        REF="${{ inputs.efis_editor_ref }}"
+        if [ -z "$REF" ]; then
+          REF="$(tr -d '[:space:]' < _action/efis-editor.ref)"
+        fi
+        echo "Using efis-editor ref: $REF"
+        echo "ref=$REF" >> "$GITHUB_OUTPUT"
+      shell: bash
+
     - name: Checkout EFIS file format editor repository
       uses: actions/checkout@v4
       with:
         repository: ${{ inputs.efis_editor_repository }}
-        ref: ${{ inputs.efis_editor_ref }}
+        ref: ${{ steps.efis-ref.outputs.ref }}
         path: _action/efis-editor
 
     - name: Install efis-editor dependencies
-      run: npm install
+      run: npm ci
       working-directory: _action/efis-editor
       shell: bash
 
@@ -110,7 +121,7 @@ runs:
       shell: bash
 
     - name: Install compiler dependencies
-      run: npm install
+      run: npm ci
       working-directory: _action
       shell: bash
 
