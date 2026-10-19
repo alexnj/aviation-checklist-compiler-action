@@ -1,0 +1,22 @@
+# Keeps the actions and npm packages this action depends on current. Each
+# update arrives as a PR, and CI runs the action end to end on it.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    # "/" covers both .github/workflows and the root action.yml.
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ['*']
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      # Majors (e.g. typescript, webpack) come as separate PRs so one breaking
+      # bump can't block the rest.
+      npm-minor-and-patch:
+        update-types: [minor, patch]

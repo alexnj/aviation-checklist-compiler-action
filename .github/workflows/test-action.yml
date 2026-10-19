@@ -11,8 +11,6 @@ on:
 
 permissions:
   contents: read
-  issues: write
-  pull-requests: write
 
 jobs:
   build:
@@ -20,7 +18,7 @@ jobs:
     steps:
       # Checked out into a subdirectory so the action's own
       # `cp -r ${{ github.action_path }} _action` doesn't copy the workspace into itself.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           path: action-src
 
@@ -29,12 +27,18 @@ jobs:
         with:
           checklists_directory: action-src/test/checklists
           efis_editor_ref: ${{ inputs.efis_editor_ref }}
+          efis_editor_patch: action-src/test/custom.patch
           create_release: false
+          comment_on_pr: false
 
       - name: Check compiled output
         run: |
           set -euo pipefail
           status=0
+          if [ ! -f _action/efis-editor/CUSTOM_PATCH_APPLIED ]; then
+            echo "::error::efis_editor_patch was not applied"
+            status=1
+          fi
           for fixture in action-src/test/checklists/*.json; do
             base="$(basename "$fixture" .json)"
             outputs="$(find artifacts -type f -name "$base.*")"
