@@ -1,0 +1,7 @@
+diff --git a/CUSTOM_PATCH_APPLIED b/CUSTOM_PATCH_APPLIED
+new file mode 100644
+index 0000000..d00491f
+--- /dev/null
++++ b/CUSTOM_PATCH_APPLIED
+@@ -0,0 +1 @@
++1

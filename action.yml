@@ -32,9 +32,10 @@ inputs:
     required: false
     default: ''
   efis_editor_patch:
-    description: 'The patch to apply to the efis-editor'
+    description: 'Path, relative to the repository root, to an extra patch to apply to efis-editor after the built-in one'
     type: string
     required: false
+    default: ''
   formats:
     description: 'A comma-separated list of FormatIds to compile.'
     type: string
@@ -69,12 +70,17 @@ inputs:
     type: number
     required: false
     default: 9
+  comment_on_pr:
+    description: 'Whether to post a comment with build links on pull requests'
+    type: boolean
+    required: false
+    default: true
 
 runs:
   using: 'composite'
   steps:
     - name: Set up Node.js
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v7
       with:
         node-version: '24'
 
@@ -94,7 +100,7 @@ runs:
       shell: bash
 
     - name: Checkout EFIS file format editor repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
       with:
         repository: ${{ inputs.efis_editor_repository }}
         ref: ${{ steps.efis-ref.outputs.ref }}
@@ -107,6 +113,16 @@ runs:
 
     - name: Patch EFIS-editor with specific changes
       run: git apply ../efis-editor.patch
+      working-directory: _action/efis-editor
+      shell: bash
+
+    - name: Apply custom efis-editor patch
+      if: inputs.efis_editor_patch != ''
+      env:
+        PATCH_FILE: ${{ github.workspace }}/${{ inputs.efis_editor_patch }}
+      run: |
+        echo "Applying $PATCH_FILE"
+        git apply "$PATCH_FILE"
       working-directory: _action/efis-editor
       shell: bash
 
@@ -146,9 +162,6 @@ runs:
       shell: bash
       working-directory: .
 
-    - name: Setup gh actions artifact client
-      uses: lhotari/gh-actions-artifact-client@v2
-
     - name: Prepare artifacts
       id: upload
       run: |
@@ -165,13 +178,13 @@ runs:
 
     - name: 'Upload Artifacts'
       id: artifact-upload-step
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: compiled-checklists
         path: ${{ inputs.compiler_output_directory }}
 
     - name: Prepare PR comment
-      if: github.event_name == 'pull_request'
+      if: github.event_name == 'pull_request' && inputs.comment_on_pr == 'true'
       run: |
         echo "<!-- create-or-update-comment -->" > comment-body.md
         echo "### ✅ Checklists Compilation" >> comment-body.md
@@ -183,13 +196,13 @@ runs:
       working-directory: .
 
     - name: Comment on PR
-      if: github.event_name == 'pull_request'
-      uses: peter-evans/create-or-update-comment@v4
+      if: github.event_name == 'pull_request' && inputs.comment_on_pr == 'true'
+      uses: peter-evans/create-or-update-comment@v5
       with:
         issue-number: ${{ github.event.pull_request.number }}
         body-path: comment-body.md
 
-    - uses: 'softprops/action-gh-release@v2'
+    - uses: 'softprops/action-gh-release@v3'
       if: github.ref == 'refs/heads/main' && inputs.create_release == 'true'
       with:
         tag_name: 'latest'
