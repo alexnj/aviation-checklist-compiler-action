@@ -20,3 +20,12 @@ updates:
       # bump can't block the rest.
       npm-minor-and-patch:
         update-types: [minor, patch]
+        # pdfkit is 0.x, so its "minor" releases can break (0.20 added an
+        # exports map that hides pdfkit/js/data). Keep it in its own PR.
+        exclude-patterns: ['pdfkit', '@types/pdfkit']
+      pdfkit:
+        patterns: ['pdfkit', '@types/pdfkit']
+    ignore:
+      # TypeScript 7 drops the JS compiler API that ts-loader relies on.
+      - dependency-name: typescript
+        versions: ['>=7']
